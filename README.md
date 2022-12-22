@@ -16,14 +16,13 @@ article at http://www.openrce.org/articles/full_view/23 and by playing
 around with the fantastic IDA dissembler, https://hex-rays.com/ida-pro/ida-disassembler/.
 
 If time permits, I intend to expand this work further and add more powerful
-RE capabilities tailored to the Skyrim executable (e.g. constructor &
-destructor analysis, more advanced automated function decompilation).
+RE capabilities tailored to the Skyrim executable.
 
 #### Requires
 
 SKSE 2.2.3
 
-Skyrim 1.6.659 (GOG edition) - because my address offsets are currently hardcoded
+Skyrim 1.6.659 (GOG edition) - because my address offsets are currently hardcoded.
 
 #### Usage
 
@@ -32,6 +31,13 @@ Skyrim 1.6.659 (GOG edition) - because my address offsets are currently hardcode
 3. If it all worked correctly, the RTTI and Papyrus native function details will 
 have been dumped to `dump_rtti.log` and `dump_functions.log` respectively, in your 
 `My Games/Skyrim Special Edition GOG/SKSE` directory.
+
+### Note
+
+The purpose of this work is simply for me to learn the basics of RE and have some fun hacking Skyrim.
+
+I do not and never will support software piracy. If you want to play or mod this great game, do the right thing and buy it 
+from GOG, Epic or wherever else. It really doesn't cost much.
 
 ### Licence
 MIT Licence. Basically do whatever you want with this code, but: (a) please include attributions for
