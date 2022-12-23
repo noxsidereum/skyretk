@@ -226,14 +226,17 @@ void PrintVirtuals(UInt64 baseAddr, const std::map<UInt64, VtblList> vtblMap)
 
 // ============================================================================
 //              Dump the class hierarchy for a given object.
+// ----------------------------------------------------------------------------
+// vtbl should be a pointer to the object's virtual function table
+// (i.e. the address of the first entry in the VFT).
 // ============================================================================
-void DumpObjectClassHierarchy(UInt64* objBase, bool verbose, UInt64 baseAddr)
+void DumpObjectClassHierarchy(UInt64* vtbl, bool verbose, UInt64 baseAddr)
 {
     std::stringstream ss;
     std::string name;
     UInt32 offset;
     RTTIClassHierarchyDescriptor* hierarchy;
-    if (!GetTypeHierarchyInfo(objBase, name, offset, hierarchy, baseAddr)) {
+    if (!GetTypeHierarchyInfo(vtbl, name, offset, hierarchy, baseAddr)) {
         _MESSAGE("<no rtti>");
         return;
     }
@@ -241,7 +244,7 @@ void DumpObjectClassHierarchy(UInt64* objBase, bool verbose, UInt64 baseAddr)
     //_MESSAGE("%s +%04X (_vtbl=%08X)", name, offset, *(UInt64*)objBase);
     ss << name;
     ss << " +" << std::hex << std::setfill('0') << std::uppercase << std::setw(4) << std::right << offset;
-    ss << " (_vtbl=" << std::setw(8) << *objBase << ')';
+    ss << " (_vtbl=" << std::setw(8) << (UInt64)vtbl << ')';
     ss << std::endl;
 
     std::vector<int> depth(hierarchy->numBaseClasses, 0);
@@ -385,9 +388,9 @@ static bool GetTypeHierarchyInfo(UInt64* vtbl, std::string& name, UInt32& offset
     return success;
 }
 
-static void GetObjectClassName(UInt64* objBase, UInt64 baseAddr, std::string& name)
+static void GetObjectClassName(UInt64* vtbl, UInt64 baseAddr, std::string& name)
 {
-    const TypeDescriptor* type = GetTypeDescriptor(objBase, baseAddr);
+    const TypeDescriptor* type = GetTypeDescriptor(vtbl, baseAddr);
     if (type) {
         GetUnmangledTypeName(type, baseAddr, name);
     }
@@ -427,7 +430,7 @@ static UInt64* GetParentVtbl(UInt64* vtbl, std::map<UInt64, VtblList> vtblMap, U
     return nullptr;
 }
 
-static void SimpleFunctionDecompiler(UInt64 addr, std::string& retOut, std::string& paramsOut,
+static void SimpleFunctionDecompiler(UInt64 funcAddr, std::string& retOut, std::string& paramsOut,
                                      std::string& bodyOut, UInt64 baseAddr)
 {
     // Attempt to decompile simple two-instruction functions with form:
@@ -435,7 +438,7 @@ static void SimpleFunctionDecompiler(UInt64 addr, std::string& retOut, std::stri
     //         "retn" | "retn imm16"
     // See https://www.felixcloutier.com/x86/ret
     //     https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/x64-architecture
-    UInt8* code = (UInt8*)addr;
+    UInt8* code = (UInt8*)funcAddr;
     std::size_t size = 0;
     std::string ret = "????  ";
     std::string body;

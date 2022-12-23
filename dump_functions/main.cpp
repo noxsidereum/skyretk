@@ -35,7 +35,7 @@
 
 #include "BSScriptFunction.h"
 #include "BSScriptVariable.h"
-//#include "../dump_rtti/RTTI.h"
+#include "../dump_rtti/RTTI.h"
 
 IDebugLog		gLog;
 
@@ -53,9 +53,8 @@ void bindNativeMethod_Hook(uintptr_t thisObj, IFunction* fn)
     UInt64 callback = *(UInt64*)((UInt64)fn + 0x50);   // previously 0x2C
     _MESSAGE("<%s> %s (%#010x) callback=%#010x", fn->GetClassName()->c_str(), 
              FunctionToString(fn).c_str(), fn, callback);
-    // TODO: Figure out how to get the function's VFT address
-    // (this line doesn't work anymore):
-    // DumpObjectClassHierarchy((UInt64*)(fn, false, baseAddr);
+    DumpObjectClassHierarchy(*(UInt64**)fn, false, baseAddr);
+    _MESSAGE("");
     ((BindNativeMethodFunction)bindNativeMethod_Orig)(thisObj, fn);
 }
 

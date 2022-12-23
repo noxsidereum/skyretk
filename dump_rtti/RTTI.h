@@ -126,7 +126,7 @@ void LoadVTables(UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap);
 
 void PrintVirtuals(UInt64 baseAddr, std::map<UInt64, VtblList> vtblMap);
 
-void DumpObjectClassHierarchy(UInt64* objBase, bool verbose, UInt64 baseAddr);
+void DumpObjectClassHierarchy(UInt64* vtbl, bool verbose, UInt64 baseAddr);
 
 // private:
 static void GetUnmangledRTTITypeName(const char* mangled, std::string& unmangled);
@@ -140,7 +140,7 @@ static UInt64* GetParentVtbl(UInt64* vtbl, std::map<UInt64, VtblList> vtblMap, U
 static bool GetTypeHierarchyInfo(UInt64* vtbl, std::string& name, UInt32& offset,
                                  RTTIClassHierarchyDescriptor*& hierarchy, UInt64 baseAddr);
 
-static void GetObjectClassName(UInt64* objBase, UInt64 s_baseAddr, std::string& name);
+static void GetObjectClassName(UInt64* vtbl, UInt64 baseAddr, std::string& name);
 
-static void SimpleFunctionDecompiler(UInt64 addr, std::string& retOut, std::string& paramsOut,
+static void SimpleFunctionDecompiler(UInt64 funcAddr, std::string& retOut, std::string& paramsOut,
                                      std::string& bodyOut, UInt64 baseAddr);
