@@ -53,7 +53,8 @@ void LoadVTables(UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap)
     UInt64 dataEnd = baseAddr + DATA_SEG_END;
 
     // 1. Given the address of type_info's vftable, we can locate all of the object 
-    //    TypeDescriptors by scanning for 64-bit memory addresses containing that address.
+    //    TypeDescriptors by scanning .DATA for 64-bit memory addresses containing 
+    //    that address.
     // 
     //    E.g. 0x41E9F968 is the address of the TypeDescriptor for BaseFormComponent.
     //    It has:
@@ -69,8 +70,8 @@ void LoadVTables(UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap)
             // We have probably found a TypeDescriptor.
             // 
             // 2. Now find the RTTICompleteObjectLocator structure for this TypeDescriptor. 
-            //    On x64 platforms, we scan for all 32-bit memory addresses containing the
-            //    OFFSET of that TypeDescriptor from the module base. We assume such
+            //    On x64 platforms, we scan .RDATA for all 32-bit memory addresses containing 
+            //    the OFFSET of that TypeDescriptor from the module base. We assume such
             //    addresses are the "pTypeDescriptor" field of an RTTICompleteObjectLocator.
             // 
             //    E.g. 0x41975F90 is the address of the RTTICompleteObjectLocator for 
@@ -91,10 +92,10 @@ void LoadVTables(UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap)
                     // RTTICompleteObjectLocator. This field is at offset 0x0C of the COL, 
                     // so decrement our pointer to address the complete COL.
                     //
-                    // 3. Now find the meta fields. Scan for all 64-bit memory addresses 
-                    //    containing the address of the RTTICompleteObjectLocator. We assume
-                    //    such addresses are 'meta' fields, appearing 0x8 bytes before the 
-                    //    start of the object's VFT.
+                    // 3. Now find the meta fields. Scan .RDATA again for all 64-bit memory
+                    //    addresses containing the address of the RTTICompleteObjectLocator.
+                    //    We assume such addresses are 'meta' fields, appearing 0x8 bytes
+                    //    before the start of the object's VFT.
                     //
                     //    E.g. 0x41613320 is the meta field, followed by VFT for 
                     //    BaseFormComponent. It has:
@@ -114,8 +115,9 @@ void LoadVTables(UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap)
                         {
                             // We have probably found the object's meta field. Increment our 
                             // pointer by 8 bytes to address the object's VFT; check that the 
-                            // dereferenced first VFT entry is in the .text segment and, if so, 
-                            // push the address into our typeDescriptor => vtbl mapping.
+                            // dereferenced first VFT entry is in the .TEXT (executable) segment
+                            // - i.e. probably refers to a valid executable function - and, 
+                            // if so, push the address into our typeDescriptor => vtbl mapping.
                             UInt64* vtbl = reinterpret_cast<UInt64*>(p + 1);
                             if (textStart <= *vtbl && *vtbl < textEnd) {
                                 UInt64 addr = baseAddr + (UInt64)col->pTypeDescriptor;

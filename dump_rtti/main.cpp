@@ -70,10 +70,12 @@ extern "C" {
             // N.B. pSectionHdr->Name is 8 bytes long. If all 8 bytes are used it won't be 
             // null-terminated. So we do this to avoids potential buffer overruns:
             scnName.assign((const char*)pSectionHdr->Name, 8);
-            _MESSAGE("  %3d: %#010x...%#010x %-10s (%u bytes)",
-                     scn, hModule + pSectionHdr->VirtualAddress,
-                     hModule + pSectionHdr->VirtualAddress + pSectionHdr->Misc.VirtualSize - 1,
-                     scnName.c_str(), pSectionHdr->Misc.VirtualSize);
+            _MESSAGE("  %3d: %#010x ... %#010x %-10s (%u bytes)",
+                     scn,
+                     baseAddr + (UInt64)pSectionHdr->VirtualAddress,
+                     baseAddr + (UInt64)pSectionHdr->VirtualAddress + (UInt64)pSectionHdr->Misc.VirtualSize,
+                     scnName.c_str(),
+                     (UInt32)pSectionHdr->Misc.VirtualSize);
             ++pSectionHdr;
         }
         _MESSAGE("--------------------------------------------------------------------------------");

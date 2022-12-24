@@ -33,20 +33,26 @@
 #include "common/ITypes.h"
 
 // ============================================================================
-//                   Offsets (from base module address)
+//                   Segment Offsets (from base module address)
 // ----------------------------------------------------------------------------
 // These are all correct for Skyrim 1.6.659 (GOG version).
+// Refer MODULE SUMMARY header in skyretk_dump_rtti.log.
 // ============================================================================
-const UInt64 TEXT_SEG_BEGIN       = 0x00001000;
-const UInt64 TEXT_SEG_END         = 0x015fd000;
+// 0: .text (+rx)
+const UInt64 TEXT_SEG_BEGIN       = 0x00001000;  // start
 const UInt64 PURE_CALL_ADDR       = 0x01471648;
+const UInt64 TEXT_SEG_END         = 0x015fcb8c;  // end
 
-const UInt64 RDATA_SEG_BEGIN      = 0x015fe1f0;
-const UInt64 RDATA_SEG_END        = 0x01e3d000;
+// 1: .rdata (+r)
+//    ignore the import table (.idata), which goes from
+//    0x015fd000 to 0x015fe1e8
+const UInt64 RDATA_SEG_BEGIN      = 0x015fe1f0;  // start
 const UInt64 TYPE_INFO_VTBL       = 0x019752c0;
+const UInt64 RDATA_SEG_END        = 0x01e3c276;  // end 
 
-const UInt64 DATA_SEG_BEGIN       = 0x01e3d000;
-const UInt64 DATA_SEG_END         = 0x0352bfff;
+// 2: .data (+rw)
+const UInt64 DATA_SEG_BEGIN       = 0x01e3d000;  // start
+const UInt64 DATA_SEG_END         = 0x0352baf0;  // end
 
 // ============================================================================
 //                          RTTI structures.
