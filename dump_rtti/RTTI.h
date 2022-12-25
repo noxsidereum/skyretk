@@ -33,7 +33,7 @@
 #include "common/ITypes.h"
 
 // ============================================================================
-//                   Segment Offsets (from base module address)
+//                Section Offsets (from base module address)
 // ----------------------------------------------------------------------------
 // These are all correct for Skyrim 1.6.659 (GOG version).
 // Refer MODULE SUMMARY header in skyretk_dump_rtti.log.
@@ -44,9 +44,7 @@ const UInt64 PURE_CALL_ADDR       = 0x01471648;
 const UInt64 TEXT_SEG_END         = 0x015fcb8c;  // end
 
 // 1: .rdata (+r)
-//    ignore the import table (.idata), which goes from
-//    0x015fd000 to 0x015fe1e8
-const UInt64 RDATA_SEG_BEGIN      = 0x015fe1f0;  // start
+const UInt64 RDATA_SEG_BEGIN      = 0x015fd000;  // start
 const UInt64 TYPE_INFO_VTBL       = 0x019752c0;
 const UInt64 RDATA_SEG_END        = 0x01e3c276;  // end 
 
@@ -128,25 +126,25 @@ typedef std::list<UInt64*> VtblList;
 //                             Functions.
 // ============================================================================
 // public:
-void LoadVTables(UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap);
+void LoadVTables(const UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap);
 
-void PrintVirtuals(UInt64 baseAddr, std::map<UInt64, VtblList> vtblMap);
+void PrintVirtuals(const UInt64 baseAddr, const std::map<UInt64, VtblList> vtblMap);
 
-void DumpObjectClassHierarchy(UInt64* vtbl, bool verbose, UInt64 baseAddr);
+void DumpObjectClassHierarchy(const UInt64* vtbl, const bool verbose, const UInt64 baseAddr);
 
 // private:
-static void GetUnmangledRTTITypeName(const char* mangled, std::string& unmangled);
+static void UnmangleRTTITypeName(const char* mangled, std::string& unmangled);
 
-static void GetUnmangledTypeName(const TypeDescriptor* type, UInt64 baseAddr, std::string& unmangled);
+static void GetUnmangledTypeName(const TypeDescriptor* type, const UInt64 baseAddr, std::string& unmangled);
 
-static const TypeDescriptor* GetTypeDescriptor(UInt64* vtbl, UInt64 baseAddr);
+static const TypeDescriptor* GetTypeDescriptor(const UInt64* vtbl, const UInt64 baseAddr);
 
-static UInt64* GetParentVtbl(UInt64* vtbl, std::map<UInt64, VtblList> vtblMap, UInt64 baseAddr);
+static UInt64* GetParentVtbl(const UInt64* vtbl, const std::map<UInt64, VtblList> vtblMap, const UInt64 baseAddr);
 
-static bool GetTypeHierarchyInfo(UInt64* vtbl, std::string& name, UInt32& offset,
-                                 RTTIClassHierarchyDescriptor*& hierarchy, UInt64 baseAddr);
+static bool GetTypeHierarchyInfo(const UInt64* vtbl, std::string& name, UInt32& offset,
+                                 RTTIClassHierarchyDescriptor*& hierarchy, const UInt64 baseAddr);
 
-static void GetObjectClassName(UInt64* vtbl, UInt64 baseAddr, std::string& name);
+static void GetObjectClassName(const UInt64* vtbl, const UInt64 baseAddr, std::string& name);
 
-static void SimpleFunctionDecompiler(UInt64 funcAddr, std::string& retOut, std::string& paramsOut,
-                                     std::string& bodyOut, UInt64 baseAddr);
+static void SimpleFunctionDecompiler(const UInt64 funcAddr, std::string& retOut, std::string& paramsOut,
+                                     std::string& bodyOut, const UInt64 baseAddr);

@@ -40,7 +40,7 @@
 //   A. Scan for, and save, the addresses of all RTTI type descriptors and 
 //      their associated virtual function tables.
 // ============================================================================
-void LoadVTables(UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap)
+void LoadVTables(const UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap)
 {
     UInt64 textStart = baseAddr + TEXT_SEG_BEGIN;
     UInt64 textEnd = baseAddr + TEXT_SEG_END;
@@ -137,7 +137,7 @@ void LoadVTables(UInt64 baseAddr, std::map<UInt64, VtblList>& vtblMap)
 //   B. Pretty print classes, including functions and inheritance.
 //      Assumes step A above (scanning for VFTs) has already been done.
 // ============================================================================
-void PrintVirtuals(UInt64 baseAddr, const std::map<UInt64, VtblList> vtblMap)
+void PrintVirtuals(const UInt64 baseAddr, const std::map<UInt64, VtblList> vtblMap)
 {
     UInt64 textStart = baseAddr + TEXT_SEG_BEGIN;
     UInt64 textEnd = baseAddr + TEXT_SEG_END;
@@ -145,28 +145,41 @@ void PrintVirtuals(UInt64 baseAddr, const std::map<UInt64, VtblList> vtblMap)
 
     for (auto& n : vtblMap)
     {
+        // Output information for each RTTITypeDescriptor in vtblMap.
+        // Each of these entries corresponds to one class.
         UInt64 type_addr = n.first;
         const VtblList& vtblList = n.second;
 
         _MESSAGE("/*==============================================================================");
         DumpObjectClassHierarchy(vtblList.front(), false, baseAddr);
         _MESSAGE("==============================================================================*/");
+
+        // Iterate over the VFTs for the current RTTITypeDescriptor (class):
         for (auto vtbl : vtblList) {
             bool bOverride = false;
             bool bAdd = false;
 
+            // Attempt to look up the VFT of the current VFT's parent class (if any):
             UInt64* vtparent = GetParentVtbl(vtbl, vtblMap, baseAddr);
 
+            // Now iterate over each entry in the current VFT.
+            // Stop when the entry no longer points at a valid executable function
+            // (does not contain an address in the .TEXT segment).
             for (int i = 0; textStart <= vtbl[i] && vtbl[i] < textEnd; i++) {
                 if (vtparent)
                 {
                     if (textStart <= vtparent[i] && vtparent[i] < textEnd)
                     {
+                        // If this vtable entry points to the same function as one 
+                        // of the vtable entries in the parent, then it hasn't
+                        // overridden anything - and we don't show it.
                         if (vtbl[i] == vtparent[i])
                             continue;
                     }
                     else
                     {
+                        // We've exhausted all the entries in the parent VFT.
+                        // Any further VFT entries in the child are additions.
                         vtparent = nullptr;
                     }
                 }
@@ -182,10 +195,12 @@ void PrintVirtuals(UInt64 baseAddr, const std::map<UInt64, VtblList> vtblMap)
                 std::string params = "????";
                 std::string body;
 
-                if (vtbl[i] == pureCall)
+                if (vtbl[i] == pureCall) {
                     body = "(pure)";
-                else
+                }
+                else {
                     SimpleFunctionDecompiler(vtbl[i], ret, params, body, baseAddr);
+                }
 
                 if (vtparent && !bOverride) {
                     bOverride = true;
@@ -195,8 +210,9 @@ void PrintVirtuals(UInt64 baseAddr, const std::map<UInt64, VtblList> vtblMap)
                 }
                 if (!vtparent && !bAdd) {
                     bAdd = true;
-                    if (i > 0)
+                    if (i > 0) {
                         _MESSAGE("    // @add");
+                    }
                 }
 
                 int numPad = 40;
@@ -209,11 +225,13 @@ void PrintVirtuals(UInt64 baseAddr, const std::map<UInt64, VtblList> vtblMap)
                 }
                 str += ';';
 
-                if (numPad < 4)
+                if (numPad < 4) {
                     numPad = 4;
-                for (int i = numPad; i > 0; --i)
+                }
+                for (int i = numPad; i > 0; --i) {
                     str += ' ';
-
+                }
+                
                 str += "// " + offset;
                 if (!body.empty()) {
                     str += ' ' + body;
@@ -232,7 +250,7 @@ void PrintVirtuals(UInt64 baseAddr, const std::map<UInt64, VtblList> vtblMap)
 // vtbl should be a pointer to the object's virtual function table
 // (i.e. the address of the first entry in the VFT).
 // ============================================================================
-void DumpObjectClassHierarchy(UInt64* vtbl, bool verbose, UInt64 baseAddr)
+void DumpObjectClassHierarchy(const UInt64* vtbl, const bool verbose, const UInt64 baseAddr)
 {
     std::stringstream ss;
     std::string name;
@@ -286,15 +304,18 @@ void DumpObjectClassHierarchy(UInt64* vtbl, bool verbose, UInt64 baseAddr)
     }
 
     std::string out = ss.str();
-    out.pop_back();               // remove the last new line character as _MESSAGE will add one
+    out.pop_back();        // remove the last new line character as _MESSAGE will add one
     _MESSAGE("%s", out.c_str());
 }
 
 // ============================================================================
 //                      Internal helper functions.
 // ============================================================================
-static void GetUnmangledRTTITypeName(const char* mangled, std::string& unmangled)
+static void UnmangleRTTITypeName(const char* mangled, std::string& unmangled)
 {
+    // ------------------------------------------------------------------------
+    // Attempt to convert a mangled RTTI type name into an unmangled one.
+    // ------------------------------------------------------------------------
     std::string tmp;
     tmp.assign(mangled);
 
@@ -329,16 +350,12 @@ static void GetUnmangledRTTITypeName(const char* mangled, std::string& unmangled
     }
 }
 
-static void GetUnmangledTypeName(const TypeDescriptor* type, UInt64 baseAddr, std::string& unmangled)
+static void GetUnmangledTypeName(const TypeDescriptor* type, const UInt64 baseAddr, 
+                                 std::string& unmangled)
 {
-    if (!type) {
-        unmangled.assign("<null type>");
-        return;
-    }
-
     if (type->pVFTable == baseAddr + TYPE_INFO_VTBL) {
         // I.e. a Skyrim type
-        GetUnmangledRTTITypeName(type->name, unmangled);
+        UnmangleRTTITypeName(type->name, unmangled);
     }
     else
     {
@@ -347,8 +364,11 @@ static void GetUnmangledTypeName(const TypeDescriptor* type, UInt64 baseAddr, st
     }
 }
 
-static const TypeDescriptor* GetTypeDescriptor(UInt64* vtbl, UInt64 baseAddr)
+static const TypeDescriptor* GetTypeDescriptor(const UInt64* vtbl, const UInt64 baseAddr)
 {
+    // ------------------------------------------------------------------------
+    // Return a pointer to the TypeDescriptor for the given VFT ('vtbl').
+    // ------------------------------------------------------------------------
     const TypeDescriptor* type = nullptr;
     __try
     {
@@ -363,9 +383,15 @@ static const TypeDescriptor* GetTypeDescriptor(UInt64* vtbl, UInt64 baseAddr)
     return type;
 }
 
-static bool GetTypeHierarchyInfo(UInt64* vtbl, std::string& name, UInt32& offset,
-                                 RTTIClassHierarchyDescriptor*& hierarchy, UInt64 baseAddr)
+static bool GetTypeHierarchyInfo(const UInt64* vtbl, std::string& name, UInt32& offset,
+                                 RTTIClassHierarchyDescriptor*& hierarchy, const UInt64 baseAddr)
 {
+    // ------------------------------------------------------------------------
+    // Try to obtain type hierarchy info for the the given VFT ('vtbl').
+    // If successful, return TRUE and store demangled RTTI type name in 'name', 
+    // offset in 'offset' and the RTTIClassHierarchy pointer in 'hierarchy'.
+    // Return FALSE otherwise.
+    // ------------------------------------------------------------------------
     bool success = false;
     const TypeDescriptor* type = nullptr;
     __try
@@ -390,8 +416,12 @@ static bool GetTypeHierarchyInfo(UInt64* vtbl, std::string& name, UInt32& offset
     return success;
 }
 
-static void GetObjectClassName(UInt64* vtbl, UInt64 baseAddr, std::string& name)
+static void GetObjectClassName(const UInt64* vtbl, const UInt64 baseAddr, std::string& name)
 {
+    // ------------------------------------------------------------------------
+    // Try to get the demangled RTTI type name for the given VFT ('vtbl').
+    // Store result in 'name'.
+    // ------------------------------------------------------------------------
     const TypeDescriptor* type = GetTypeDescriptor(vtbl, baseAddr);
     if (type) {
         GetUnmangledTypeName(type, baseAddr, name);
@@ -401,27 +431,40 @@ static void GetObjectClassName(UInt64* vtbl, UInt64 baseAddr, std::string& name)
     }
 }
 
-static UInt64* GetParentVtbl(UInt64* vtbl, std::map<UInt64, VtblList> vtblMap, UInt64 baseAddr)
+static UInt64* GetParentVtbl(const UInt64* vtbl, const std::map<UInt64, VtblList> vtblMap, 
+                             const UInt64 baseAddr)
 {
-    RTTICompleteObjectLocator* rtti = *(RTTICompleteObjectLocator**)(vtbl - 1);
+    // ------------------------------------------------------------------------
+    // Try to locate the parent VFT for the given VFT ('vtbl').
+    // Return a pointer to that if found, or NULL otherwise.
+    // ------------------------------------------------------------------------
+    // Decrement vtbl pointer by one to get the "meta" field, the pointer to the
+    // object's RTTICompleteObjectLocator structure.
+    RTTICompleteObjectLocator* col = *(RTTICompleteObjectLocator**)(vtbl - 1);
 
-    if (rtti->pClassDescriptor)
+    // Is the derived RTTICompleteObjectLocator valid?
+    // N.B. col->pClassDescriptor should not be null, even when the class has no parent.
+    if (col->pClassDescriptor)
     {
         RTTIClassHierarchyDescriptor* hierarchy =
-            reinterpret_cast<RTTIClassHierarchyDescriptor*>(baseAddr + (UInt64)rtti->pClassDescriptor);
+            reinterpret_cast<RTTIClassHierarchyDescriptor*>(baseAddr + (UInt64)col->pClassDescriptor);
 
-        // Iterate over the array of base class pointers
+        // Iterate over the array of 32-bit base class pointer offsets.
+        // We skip the first entry because that is the BaseClassDescriptor for the current object.
         UInt64 nClasses = hierarchy->numBaseClasses;
         UInt64 pClassArray = baseAddr + (UInt64)hierarchy->pBaseClassArray;
         for (UInt64 i = 1; i < nClasses; i++)
         {
-            auto index = i * 4;
+            UInt64 index = i * 4;
             UInt32 pBaseClass = *(UInt32*)(pClassArray + index);
             RTTIBaseClassDescriptor* baseClass =
                 reinterpret_cast<RTTIBaseClassDescriptor*>(baseAddr + (UInt64)pBaseClass);
 
-            if (baseClass->where.mdisp == rtti->offset)
+            if (baseClass->where.mdisp == col->offset)
             {
+                // Attempt to locate this base class's TypeDescriptor in our
+                // Type=>VFT mapping. If found, then return the first VFT in the
+                // associated VFT list as the start of the VFT of the parent.
                 auto it = vtblMap.find(baseAddr + (UInt64)baseClass->pTypeDescriptor);
                 if (it != vtblMap.cend())
                     return it->second.front();
@@ -429,15 +472,18 @@ static UInt64* GetParentVtbl(UInt64* vtbl, std::map<UInt64, VtblList> vtblMap, U
         }
     }
 
+    // Parent vtbl not found.
     return nullptr;
 }
 
-static void SimpleFunctionDecompiler(UInt64 funcAddr, std::string& retOut, std::string& paramsOut,
-                                     std::string& bodyOut, UInt64 baseAddr)
+static void SimpleFunctionDecompiler(const UInt64 funcAddr, std::string& retOut, std::string& paramsOut,
+                                     std::string& bodyOut, const UInt64 baseAddr)
 {
-    // Attempt to decompile simple two-instruction functions with form:
+    // ------------------------------------------------------------------------
+    // Attempt to decompile a simple two-instruction function of form:
     //         <some instruction>
     //         "retn" | "retn imm16"
+    // ------------------------------------------------------------------------
     // See https://www.felixcloutier.com/x86/ret
     //     https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/x64-architecture
     UInt8* code = (UInt8*)funcAddr;

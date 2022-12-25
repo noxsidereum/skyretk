@@ -29,6 +29,8 @@
 
 #include <dbghelp.h>
 #include <shlobj.h>
+#include <time.h>
+#include <vector>
 
 #include "common/IDebugLog.h"
 #include "skse64_common/skse_version.h"
@@ -48,23 +50,44 @@ extern "C" {
         HMODULE hModule = GetModuleHandle(NULL);
         DWORD ret = GetModuleFileNameA(hModule, modFileName, MAX_PATH);
         UInt64 baseAddr = reinterpret_cast<UInt64>(hModule);
+        IMAGE_NT_HEADERS* pNtHdr = ImageNtHeader(hModule);
 
         // ----------------------------------------------------------------------
         //        Print useful summary info about the loaded executable.
+        // See https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
         // ----------------------------------------------------------------------
         _MESSAGE("------------------------------ MODULE SUMMARY ----------------------------------");
         if (ret) {
             _MESSAGE("File name: %s", modFileName);
         }
+        std::string format;
+        switch ((UInt16)pNtHdr->FileHeader.Machine) {
+        case IMAGE_FILE_MACHINE_I386:
+            format = "Intel 386 or later processors and compatible processors";
+            break;
+        case IMAGE_FILE_MACHINE_IA64:
+            format = "Intel Itanium processor family";
+            break;
+        case IMAGE_FILE_MACHINE_AMD64:
+            format = "x64";
+            break;
+        default:
+            format = "UNRECOGNISED";
+            break;
+        }
+        _MESSAGE("Format: %s (0x%04X)", format.c_str(), (UInt16)pNtHdr->FileHeader.Machine);
+        const time_t t1 = (time_t)pNtHdr->FileHeader.TimeDateStamp;
+        char buf[32];
+        if (!ctime_s(buf, sizeof(buf), &t1)) {
+            _MESSAGE("Build timestamp: %s", buf);
+        }
         _MESSAGE("Base address: %#010x", baseAddr);
-        _MESSAGE("Sections:");
 
         // Thanks Nawaz @
         // https://stackoverflow.com/questions/4308996/finding-the-address-range-of-the-data-segment
-        IMAGE_NT_HEADERS* pNtHdr = ImageNtHeader(hModule);
+        _MESSAGE("Sections:");
         IMAGE_SECTION_HEADER* pSectionHdr = (IMAGE_SECTION_HEADER*)(pNtHdr + 1);
         std::string scnName;
-
         for (int scn = 0; scn < pNtHdr->FileHeader.NumberOfSections; ++scn)
         {
             // N.B. pSectionHdr->Name is 8 bytes long. If all 8 bytes are used it won't be 
@@ -77,6 +100,27 @@ extern "C" {
                      scnName.c_str(),
                      (UInt32)pSectionHdr->Misc.VirtualSize);
             ++pSectionHdr;
+        }
+
+        _MESSAGE("Data directories:");
+        std::vector<std::string> dirNames
+        { "Export Table", "Import Table", "Resource Table", "Exception Table", 
+          "Certificate Table", "Base Relocation Table", "Debug",
+          "Architecture", "Global Ptr", "TLS Table", "Load Config Table",
+          "Bound Import", "IAT", "Delay Import Descriptor",
+          "CLR Runtime Header" };
+        int k = 0;
+        for (int i = 0; i < pNtHdr->OptionalHeader.NumberOfRvaAndSizes && i < 16; ++i) 
+        {
+            IMAGE_DATA_DIRECTORY pDataDir = pNtHdr->OptionalHeader.DataDirectory[i];
+            if ((UInt64)pDataDir.Size > 0) {
+                _MESSAGE("  %3d: %#010x ... %#010x %-25s (%u bytes)",
+                    k++,
+                    baseAddr + (UInt64)pDataDir.VirtualAddress,
+                    baseAddr + (UInt64)pDataDir.VirtualAddress + (UInt64)pDataDir.Size,
+                    dirNames.at(i).c_str(),
+                    (UInt32)pDataDir.Size);
+            }
         }
         _MESSAGE("--------------------------------------------------------------------------------");
 
